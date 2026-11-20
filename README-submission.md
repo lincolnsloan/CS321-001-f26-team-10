@@ -1,10 +1,9 @@
 ### Team Name 
 ## Team Members
-Gavin Dombrowsky, Lincoln Sloan, Michael Rangel
 
 | Last Name | First Name | GitHub User Name |
 |-----------|------------|------------------|
-| TBD       | TBD        | TBD              |
+| Dombrowsky| Gavin      |gavindombrowsky   |
 | TBD       | TBD        | TBD              |
 | TBD       | TBD        | TBD              |
 
