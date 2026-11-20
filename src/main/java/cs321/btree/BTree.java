@@ -88,33 +88,50 @@ public class BTree implements BTreeInterface
     }
 
     @Override
+    // Write this for issue #7
     public long getSize() {
         // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'getSize'");
     }
 
     @Override
+    // Write this for issue #7
     public int getDegree() {
         // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'getDegree'");
     }
 
     @Override
+    // Write this for issue #7
     public long getNumberOfNodes() {
         // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'getNumberOfNodes'");
     }
 
     @Override
+    // Write this for issue #7
     public int getHeight() {
         // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'getHeight'");
     }
 
     @Override
+    // Write this for issue #7
     public void insert(TreeObject obj) throws IOException {
         // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'insert'");
+    }
+
+    // Write this for issue #7
+    // Called by insert()
+    private void splitChild(BTreeNode parent, int childIndex) throws IOException {
+        throw new UnsupportedOperationException("Unimplemented method 'splitChild'");
+    }
+
+    // Write this for issue #7
+    // Called by insert()
+    private void insertNonFull(BTreeNode node, TreeObject obj) throws IOException {
+        throw new UnsupportedOperationException("Unimplemented method 'insertNonFull'");
     }
 
     @Override
