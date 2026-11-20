@@ -3,8 +3,8 @@
 
 | Last Name | First Name | GitHub User Name |
 |-----------|------------|------------------|
-| Dombrowsky| Gavin      |gavindombrowsky   |
-| TBD       | TBD        | TBD              |
+| Dombrowsky| Gavin      | gavindombrowsky  |
+| Sloan     | Lincoln    | lincolnsloan     |
 | TBD       | TBD        | TBD              |
 
 # Test Results
