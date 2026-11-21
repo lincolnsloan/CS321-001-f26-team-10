@@ -6,6 +6,7 @@ import java.io.PrintWriter;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
 
 public class BTree implements BTreeInterface
 {
@@ -17,13 +18,13 @@ public class BTree implements BTreeInterface
     private long size;
     private long numNodes;
     private int height;
-    
+
     private RandomAccessFile dataFile;
     private FileChannel fileChannel;
     private long nextDiskAddress;
-    
+
     private static final int METADATA_SIZE = Long.BYTES;
-    
+
     private boolean useCache;
     private int cacheSize;
 
@@ -79,30 +80,87 @@ public class BTree implements BTreeInterface
         }
     }
 
-   private void diskWrite(BTreeNode node) throws IOException {
+    private BTreeNode diskRead(long diskAddress) throws IOException {
+        if (diskAddress <= 0) {
+            return null;
+        }
+
+        fileChannel.position(diskAddress);
+
+        BTreeNode temp = new BTreeNode(degree, true);
+        int nodeByteSize = temp.getNodeDiskSize();
+        ByteBuffer buffer = ByteBuffer.allocate(nodeByteSize);
+
+        while (buffer.hasRemaining()) {
+            if (fileChannel.read(buffer) == -1) {
+                break;
+            }
+        }
+        buffer.flip();
+
+        boolean isLeaf = (buffer.get() == 1);
+        int numKeys = buffer.getInt();
+
+        BTreeNode node = new BTreeNode(degree, isLeaf);
+        node.setAddress(diskAddress);
+        node.setNumKeys(numKeys);
+
+        int maxKeys = 2 * degree - 1;
+        for (int i = 0; i < maxKeys; i++) {
+            byte[] keyBytes = new byte[64];
+            buffer.get(keyBytes);
+            long frequency = buffer.getLong();
+
+            if (i < numKeys) {
+                String rawKey = new String(keyBytes, StandardCharsets.UTF_8);
+                int nullIdx = rawKey.indexOf('\0');
+                if (nullIdx >= 0) {
+                    rawKey = rawKey.substring(0, nullIdx);
+                }
+                rawKey = rawKey.trim();
+                if (!rawKey.isEmpty()) {
+                    TreeObject obj = new TreeObject(rawKey, frequency);
+                    node.setKey(i, obj);
+                }
+            }
+        }
+
+        int maxChildren = 2 * degree;
+        for (int i = 0; i < maxChildren; i++) {
+            long childAddress = buffer.getLong();
+            node.setChild(i, childAddress);
+        }
+
+        return node;
+    }
+
+    private void diskWrite(BTreeNode node) throws IOException {
         if (node == null) {
             return;
         }
 
         fileChannel.position(node.getAddress());
 
-        int nodeByteSize = BTreeNode.calculateByteSize(degree);
+        int nodeByteSize = node.getNodeDiskSize();
         ByteBuffer buffer = ByteBuffer.allocate(nodeByteSize);
 
         buffer.put((byte) (node.isLeaf() ? 1 : 0));
         buffer.putInt(node.getNumKeys());
 
-        TreeObject[] keys = node.getKeys();
-        for (int i = 0; i < (2 * degree - 1); i++) {
+        int maxKeys = 2 * degree - 1;
+        for (int i = 0; i < maxKeys; i++) {
             String keyStr = "";
             long frequency = 0L;
 
-            if (keys != null && i < node.getNumKeys() && keys[i] != null) {
-                keyStr = keys[i].getKey();
-                frequency = keys[i].getCount();
+            if (i < node.getNumKeys()) {
+                TreeObject keyObj = node.getKey(i);
+                if (keyObj != null) {
+                    keyStr = keyObj.getKey();
+                    frequency = keyObj.getCount();
+                }
             }
 
-            byte[] rawBytes = keyStr.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            byte[] rawBytes = keyStr.getBytes(StandardCharsets.UTF_8);
             byte[] keyBytes = new byte[64];
             System.arraycopy(rawBytes, 0, keyBytes, 0, Math.min(rawBytes.length, 64));
 
@@ -110,9 +168,9 @@ public class BTree implements BTreeInterface
             buffer.putLong(frequency);
         }
 
-        long[] children = node.getChildren();
-        for (int i = 0; i < (2 * degree); i++) {
-            long childAddress = (children != null) ? children[i] : 0L;
+        int maxChildren = 2 * degree;
+        for (int i = 0; i < maxChildren; i++) {
+            long childAddress = node.getChild(i);
             buffer.putLong(childAddress);
         }
 
@@ -122,7 +180,6 @@ public class BTree implements BTreeInterface
         }
     }
 
-<<<<<<< HEAD
     private void readMetadata() throws IOException {
         fileChannel.position(0);
         ByteBuffer buffer = ByteBuffer.allocate(METADATA_SIZE);
@@ -135,16 +192,6 @@ public class BTree implements BTreeInterface
         if (buffer.remaining() >= Long.BYTES) {
             rootAddress = buffer.getLong();
         }
-=======
-    private void diskWrite(BTreeNode node) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'diskWrite'");
-    }
-
-    private void readMetadata() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'readMetadata'");
->>>>>>> 948373ec6edfc77d2fe9c18b8c741b161377ab97
     }
 
     private void writeMetadata() throws IOException {
@@ -156,6 +203,7 @@ public class BTree implements BTreeInterface
             fileChannel.write(buffer);
         }
     }
+
     @Override
     public long getSize() {
         return size;
