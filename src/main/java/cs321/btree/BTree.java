@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
 public class BTree implements BTreeInterface
@@ -78,11 +79,63 @@ public class BTree implements BTreeInterface
         }
     }
 
-    private BTreeNode diskRead(long rootAddress2) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'diskRead'");
+   private void diskWrite(BTreeNode node) throws IOException {
+        if (node == null) {
+            return;
+        }
+
+        fileChannel.position(node.getAddress());
+
+        int nodeByteSize = BTreeNode.calculateByteSize(degree);
+        ByteBuffer buffer = ByteBuffer.allocate(nodeByteSize);
+
+        buffer.put((byte) (node.isLeaf() ? 1 : 0));
+        buffer.putInt(node.getNumKeys());
+
+        TreeObject[] keys = node.getKeys();
+        for (int i = 0; i < (2 * degree - 1); i++) {
+            String keyStr = "";
+            long frequency = 0L;
+
+            if (keys != null && i < node.getNumKeys() && keys[i] != null) {
+                keyStr = keys[i].getKey();
+                frequency = keys[i].getCount();
+            }
+
+            byte[] rawBytes = keyStr.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            byte[] keyBytes = new byte[64];
+            System.arraycopy(rawBytes, 0, keyBytes, 0, Math.min(rawBytes.length, 64));
+
+            buffer.put(keyBytes);
+            buffer.putLong(frequency);
+        }
+
+        long[] children = node.getChildren();
+        for (int i = 0; i < (2 * degree); i++) {
+            long childAddress = (children != null) ? children[i] : 0L;
+            buffer.putLong(childAddress);
+        }
+
+        buffer.flip();
+        while (buffer.hasRemaining()) {
+            fileChannel.write(buffer);
+        }
     }
 
+<<<<<<< HEAD
+    private void readMetadata() throws IOException {
+        fileChannel.position(0);
+        ByteBuffer buffer = ByteBuffer.allocate(METADATA_SIZE);
+        while (buffer.hasRemaining()) {
+            if (fileChannel.read(buffer) == -1) {
+                break;
+            }
+        }
+        buffer.flip();
+        if (buffer.remaining() >= Long.BYTES) {
+            rootAddress = buffer.getLong();
+        }
+=======
     private void diskWrite(BTreeNode node) {
         // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'diskWrite'");
@@ -91,13 +144,18 @@ public class BTree implements BTreeInterface
     private void readMetadata() {
         // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'readMetadata'");
+>>>>>>> 948373ec6edfc77d2fe9c18b8c741b161377ab97
     }
 
-    private void writeMetadata() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'writeMetadata'");
+    private void writeMetadata() throws IOException {
+        fileChannel.position(0);
+        ByteBuffer buffer = ByteBuffer.allocate(METADATA_SIZE);
+        buffer.putLong(rootAddress);
+        buffer.flip();
+        while (buffer.hasRemaining()) {
+            fileChannel.write(buffer);
+        }
     }
-
     @Override
     public long getSize() {
         return size;
