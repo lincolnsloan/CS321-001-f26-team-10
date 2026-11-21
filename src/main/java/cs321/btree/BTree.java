@@ -13,6 +13,9 @@ public class BTree implements BTreeInterface
     private int degree;
     private long rootAddress;
     private BTreeNode root;
+    private long size;
+    private long numNodes;
+    private int height;
     
     private RandomAccessFile dataFile;
     private FileChannel fileChannel;
@@ -58,6 +61,9 @@ public class BTree implements BTreeInterface
                 root = new BTreeNode(this.degree, true);
                 root.setAddress(rootAddress);
                 nextDiskAddress += root.getNodeDiskSize();
+                size = 0;
+                numNodes = 1;
+                height = 0;
 
                 writeMetadata();
                 diskWrite(root);
@@ -77,6 +83,11 @@ public class BTree implements BTreeInterface
         throw new UnsupportedOperationException("Unimplemented method 'diskRead'");
     }
 
+    private void diskWrite(BTreeNode node) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'diskWrite'");
+    }
+
     private void readMetadata() {
         // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'readMetadata'");
@@ -88,50 +99,153 @@ public class BTree implements BTreeInterface
     }
 
     @Override
-    // Write this for issue #7
     public long getSize() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getSize'");
+        return size;
     }
 
     @Override
-    // Write this for issue #7
     public int getDegree() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getDegree'");
+        return degree;
     }
 
     @Override
-    // Write this for issue #7
     public long getNumberOfNodes() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getNumberOfNodes'");
+        return numNodes;
     }
 
     @Override
-    // Write this for issue #7
     public int getHeight() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getHeight'");
+        return height;
     }
 
     @Override
-    // Write this for issue #7
     public void insert(TreeObject obj) throws IOException {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'insert'");
+        int found = findKey(root, obj);
+        if (found >= 0) {
+            root.getKey(found).incCount();
+        } else if (isFull(root)) {
+            BTreeNode oldRoot = root;
+            root = new BTreeNode(degree, false);
+            root.setAddress(nextDiskAddress);
+            nextDiskAddress += root.getNodeDiskSize();
+            numNodes++;
+            height++;
+            root.setChild(0, oldRoot.getAddress());
+            rootAddress = root.getAddress();
+            splitChild(root, 0);
+            insertNonFull(root, obj);
+        } else {
+            insertNonFull(root, obj);
+        }
+        diskWrite(root);
     }
 
-    // Write this for issue #7
-    // Called by insert()
+    /* Split the full child at childIndex. parent is not full. */
     private void splitChild(BTreeNode parent, int childIndex) throws IOException {
-        throw new UnsupportedOperationException("Unimplemented method 'splitChild'");
+        int t = degree;
+        BTreeNode full = diskRead(parent.getChild(childIndex));
+        BTreeNode sibling = new BTreeNode(degree, full.isLeaf());
+        sibling.setAddress(nextDiskAddress);
+        nextDiskAddress += sibling.getNodeDiskSize();
+        numNodes++;
+
+        for (int j = 0; j < t - 1; j++) {
+            sibling.setKey(j, full.getKey(j + t));
+        }
+        if (!full.isLeaf()) {
+            for (int j = 0; j < t; j++) {
+                sibling.setChild(j, full.getChild(j + t));
+            }
+        }
+        TreeObject median = full.getKey(t - 1);
+        full.setNumKeys(t - 1);
+        sibling.setNumKeys(t - 1);
+
+        for (int j = parent.getNumKeys(); j >= childIndex + 1; j--) {
+            parent.setChild(j + 1, parent.getChild(j));
+        }
+        parent.setChild(childIndex + 1, sibling.getAddress());
+
+        for (int j = parent.getNumKeys() - 1; j >= childIndex; j--) {
+            parent.setKey(j + 1, parent.getKey(j));
+        }
+        parent.setKey(childIndex, median);
+        parent.setNumKeys(parent.getNumKeys() + 1);
+
+        diskWrite(full);
+        diskWrite(sibling);
+        if (parent != root) {
+            diskWrite(parent);
+        }
     }
 
-    // Write this for issue #7
-    // Called by insert()
+    /* Insert obj into node, which is not full. Called by insert(). */
     private void insertNonFull(BTreeNode node, TreeObject obj) throws IOException {
-        throw new UnsupportedOperationException("Unimplemented method 'insertNonFull'");
+        int found = findKey(node, obj);
+        if (found >= 0) {
+            node.getKey(found).incCount();
+            if (node != root) {
+                diskWrite(node);
+            }
+            return;
+        }
+
+        if (node.isLeaf()) {
+            int i = node.getNumKeys() - 1;
+            while (i >= 0 && obj.compareTo(node.getKey(i)) < 0) {
+                node.setKey(i + 1, node.getKey(i));
+                i--;
+            }
+            node.setKey(i + 1, obj);
+            node.setNumKeys(node.getNumKeys() + 1);
+            size++;
+            if (node != root) {
+                diskWrite(node);
+            }
+            return;
+        }
+
+        int i = node.getNumKeys() - 1;
+        while (i >= 0 && obj.compareTo(node.getKey(i)) < 0) {
+            i--;
+        }
+        i++;
+
+        BTreeNode child = diskRead(node.getChild(i));
+        int childFound = findKey(child, obj);
+        if (childFound >= 0) {
+            child.getKey(childFound).incCount();
+            diskWrite(child);
+            return;
+        }
+        if (isFull(child)) {
+            splitChild(node, i);
+            if (obj.compareTo(node.getKey(i)) == 0) {
+                node.getKey(i).incCount();
+                if (node != root) {
+                    diskWrite(node);
+                }
+                return;
+            }
+            if (obj.compareTo(node.getKey(i)) > 0) {
+                i++;
+            }
+            child = diskRead(node.getChild(i));
+        }
+        insertNonFull(child, obj);
+    }
+
+    private int findKey(BTreeNode node, TreeObject obj) {
+        for (int i = 0; i < node.getNumKeys(); i++) {
+            if (node.getKey(i).compareTo(obj) == 0) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private boolean isFull(BTreeNode node) {
+        return node.getNumKeys() == 2 * degree - 1;
     }
 
     @Override
