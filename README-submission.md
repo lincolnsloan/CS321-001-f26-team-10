@@ -5,7 +5,7 @@
 |-----------|------------|------------------|
 | Dombrowsky| Gavin      | gavindombrowsky  |
 | Sloan     | Lincoln    | lincolnsloan     |
-| TBD       | TBD        | TBD              |
+| Rangel       | Michael        | MichaelR25              |
 
 # Test Results
 How many of the dumpfiles matched (using the check-dump-files.sh script)?
