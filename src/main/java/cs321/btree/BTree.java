@@ -7,6 +7,7 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 
 public class BTree implements BTreeInterface
 {
@@ -29,17 +30,17 @@ public class BTree implements BTreeInterface
     private int cacheSize;
 
     /* Constructor for creating a new BTree */
-    public BTree(String filename) throws BTreeException, IOException {
+    public BTree(String filename) throws BTreeException {
         this(0, filename, false, 0);
     }
 
     /* Constructor for creating a new BTree with a specified degree */
-    public BTree(int degree, String filename) throws BTreeException, IOException {
+    public BTree(int degree, String filename) throws BTreeException {
         this(degree, filename, false, 0);
     }
 
     /* Constructor for creating a new BTree with caching enabled */
-    public BTree(int degree, String filename, boolean useCache, int cacheSize) throws BTreeException, IOException {
+    public BTree(int degree, String filename, boolean useCache, int cacheSize) throws BTreeException {
         this.filename = filename;
         this.file = new File(filename);
         this.useCache = useCache;
@@ -52,7 +53,7 @@ public class BTree implements BTreeInterface
         }
 
         try {
-            if (!file.exists()) {
+            if (!file.exists() || file.length() == 0) {
                 file.createNewFile();
                 dataFile = new RandomAccessFile(file, "rw");
                 fileChannel = dataFile.getChannel();
@@ -191,6 +192,7 @@ public class BTree implements BTreeInterface
         buffer.flip();
         if (buffer.remaining() >= Long.BYTES) {
             rootAddress = buffer.getLong();
+
         }
     }
 
@@ -352,6 +354,31 @@ public class BTree implements BTreeInterface
 
     private boolean isFull(BTreeNode node) {
         return node.getNumKeys() == 2 * degree - 1;
+    }
+
+    public String[] getSortedKeyArray() throws IOException {
+        ArrayList<String> keys = new ArrayList<>();
+
+        inOrderTraversal(root, keys);
+        return keys.toArray(new String[0]);
+    }
+
+    private BTreeNode inOrderTraversal(BTreeNode node, ArrayList<String> keys) throws IOException {
+        if (node == null) {
+            return null;
+        }
+        for (int i = 0; i < node.getNumKeys(); i++) {
+            if (!node.isLeaf()) {
+                BTreeNode child = diskRead(node.getChild(i));
+                inOrderTraversal(child, keys);
+            }
+            keys.add(node.getKey(i).getKey());
+        }
+        if (!node.isLeaf()) {
+            BTreeNode child = diskRead(node.getChild(node.getNumKeys()));
+            inOrderTraversal(child, keys);
+        }
+        return node;
     }
 
     @Override
