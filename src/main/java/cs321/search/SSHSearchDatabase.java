@@ -10,10 +10,20 @@ import cs321.common.ParseArgumentUtils;
  */
 public class SSHSearchDatabase
 {
-	
-    public static void main(String[] args) throws Exception
+	private static SSHSearchDatabaseArguments arguments;
+    public static void main(String[] args) throws ParseArgumentException
     {
         System.out.println("Hello world from cs321.search.SSHSearchDatabase.main");
+        try {
+            arguments = new SSHSearchDatabaseArguments(args);
+            System.out.println("Type: " + arguments.getType());
+            System.out.println("Database Path: " + arguments.getDatabasePath());
+            System.out.println("Frequency: " + arguments.getFrequency());
+        }
+        catch (ParseArgumentException e) {
+            System.out.println("Error parsing arguments: " + e.getMessage());
+            arguments.printUsage();
+        }
     }
 
 }
